@@ -1,0 +1,96 @@
+##
+rm(list = ls())
+
+##
+y1 <- c(30, 32, 28, 33, 35, 29)
+y2 <- c(27, 40, 43, 34, 32, 42)
+y3 <- c(24, 22, 31, 30, 27, 26)
+y4 <- c(42, 34, 37, 35, 33, 40)
+y5 <- c(33, 29, 40, 30, 34, 37)
+
+
+y <- rbind(y1, y2, y3, y4, y5)
+
+m <- 5
+n <- 6
+
+N <- m*n
+
+
+########################################################################
+#########################################################################
+this is useful for group data, especially balanced
+#########################################################################
+#####################################################################
+## Analytical results for balanced data
+SSA <- 0
+for(i in 1:m){
+SSA <- SSA + n*(mean(y[i,]) - mean(y))^2
+}
+
+MSA <- SSA/(m-1)
+
+
+SSE <- 0
+for(i in 1:m){
+for(j in 1:n){
+SSE <- SSE + (y[i,j] - mean(y[i,]))^2
+}}
+
+MSE <- SSE/(m*(n-1))
+
+##
+mu.hat <- mean(y)
+
+if( (1-(1/m))*MSA >= MSE){
+sigma.sq.hat <- MSE
+sigma.sq.a.hat <- ( (1-(1/m))*MSA - MSE)/n
+}
+
+if((1-(1/m))*MSA < MSE){
+SST <- 0
+for(i in 1:m){
+for(j in 1:n){
+SST <- SST + (y[i,j] - mean(y))^2
+}}
+
+sigma.sq.hat <- SST/(m*n)
+sigma.sq.a.hat <- 0
+}
+
+mu.hat
+sigma.sq.hat
+sigma.sq.a.hat
+
+########################################################################
+#########################################################################
+## calculate the best predictors;
+what does a.i.tilde mean?
+#########################################################################
+#####################################################################
+y.i.bar <- apply(y, 1, mean)
+a.i.tilde <- sigma.sq.a.hat/(sigma.sq.a.hat + sigma.sq.hat/n)*(y.i.bar - mu.hat) 
+
+a.i.tilde
+
+########################################################################
+#########################################################################
+## Now using lme, compare this to the code21, 22
+#########################################################################
+#####################################################################
+
+library(nlme)
+
+y.stack <- c(y1, y2, y3, y4, y5)
+id <- rep(1:5, each=n)
+
+
+data <- groupedData(y.stack ~ 1 | id)
+mod <- lme(y.stack ~ 1,  random = ~ 1, method="ML", data=data)
+
+summary(mod)
+
+## get the the best predictors
+mod$coef
+
+
