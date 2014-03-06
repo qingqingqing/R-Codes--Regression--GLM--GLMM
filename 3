@@ -1,0 +1,115 @@
+##
+rm(list = ls())
+
+##
+y1 <- c(30, 32, 28, 33, 35, 29)
+y2 <- c(27, 40, 43, 34, 32, 42)
+y3 <- c(24, 22, 31, 30, 27, 26)
+y4 <- c(42, 34, 37, 35, 33, 40)
+y5 <- c(33, 29, 40, 30, 34, 37)
+
+
+y <- rbind(y1, y2, y3, y4, y5)
+
+m <- 5
+n <- 6
+
+N <- m*n
+
+
+
+## Analytical results for balanced data
+SSA <- 0
+for(i in 1:m){
+SSA <- SSA + n*(mean(y[i,]) - mean(y))^2
+}
+
+MSA <- SSA/(m-1)
+
+
+SSE <- 0
+for(i in 1:m){
+for(j in 1:n){
+SSE <- SSE + (y[i,j] - mean(y[i,]))^2
+}}
+
+MSE <- SSE/(m*(n-1))
+
+##
+mu.hat <- mean(y)
+
+if( (1-(1/m))*MSA >= MSE){
+sigma.sq.hat <- MSE
+sigma.sq.a.hat <- ( (1-(1/m))*MSA - MSE)/n
+}
+
+if((1-(1/m))*MSA < MSE){
+SST <- 0
+for(i in 1:m){
+for(j in 1:n){
+SST <- SST + (y[i,j] - mean(y))^2
+}}
+
+sigma.sq.hat <- SST/(m*n)
+sigma.sq.a.hat <- 0
+}
+
+mu.hat
+sigma.sq.hat
+sigma.sq.a.hat
+lambda.hat <- sigma.sq.hat + n*sigma.sq.a.hat
+
+## Assymptotic variances
+var.mu.hat <- (sigma.sq.hat + n*sigma.sq.a.hat)/(m*n)
+var.sigma.sq.hat <- 2*sigma.sq.hat^2/(m*(n-1))
+var.sigma.sq.a.hat <- 2*sigma.sq.hat^2*( (1/n^2)*( (lambda.hat^2/sigma.sq.hat^2)/m + 1/(m*(n-1))))
+
+var.mu.hat
+var.sigma.sq.hat
+var.sigma.sq.a.hat
+
+
+## Let''s use optim() to get the same result
+
+log.likelihood <- function(theta){
+	
+	mu <- theta[1]
+	sigma.sq <- theta[2]
+	sigma.sq.a <- theta[3]
+	
+	# n.i is the same for each i
+	one <- matrix(1, nrow=n, ncol=1)
+	Ident <- diag(n)
+	J <- matrix(1, nrow=n, ncol=n)
+	
+	V.inv <- (1/sigma.sq)*(Ident - (sigma.sq.a/(sigma.sq + n*sigma.sq.a))*J)
+	det.V <- (sigma.sq + n*sigma.sq.a)*(sigma.sq^(n-1))
+	
+	ll <- 0
+	for(i in 1:m){
+	ll <- ll + -(n/2)*log(2*pi)	 - (1/2)*log(det.V) + ((-1/2)*t(y[i,]-mu*one)%*%V.inv%*%(y[i,]-mu*one))  
+	}
+	
+   return(ll)
+}
+
+## Let''s test the function
+y.bar <- mean(y)
+s.sq <- var(c(y))
+s.sq.a <- var(apply(y, 1, mean))
+
+theta <- c(y.bar, s.sq, s.sq.a)
+log.likelihood(theta)
+
+## Use optim() 
+start <- c(y.bar, s.sq, s.sq.a)
+out <- optim(start, log.likelihood, hessian=TRUE, control=list(fnscale=-1))
+out
+
+
+ll.max <- out$value
+
+assym.vcv <- -solve(out$hessian)
+assym.vcv
+diag(assym.vcv)
+
