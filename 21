@@ -1,0 +1,169 @@
+rm(list = ls())
+library(faraway)
+library(mvtnorm)
+library(lme4)
+
+## data
+data(pulp)
+pulp ## this is just a one factor model
+N <- nrow(pulp)
+
+Z <- model.matrix(~-1 + operator,data=pulp)
+sigma.sq.a <- 2
+var.gamma <- sigma.sq.a*diag(4)
+D <- Z%*%var.gamma%*%t(Z)
+D
+
+## ################################################
+note to download the lme4, in order to use lmer model; 
+what is REML?
+which should we use, the REML=F or as default? 
+####################################################
+mod.ml <- lmer(bright ~ 1 + (1|operator), data=pulp, REML=F)
+summary(mod.ml)
+
+mod.reml <- lmer(bright ~ 1 + (1|operator), data=pulp)  ## REML is the default
+summary(mod.reml)
+
+######################################
+## let''s test sigma.sq.a = 0
+the p value is  0.1090199, what conclusion can we get? which model is better? 
+######################################
+mod.0 <- lm(bright ~ 1, data=pulp)
+
+## ML
+test.stat <- as.numeric(2*(logLik(mod.ml) - logLik(mod.0)))
+test.stat
+1-pchisq(test.stat, 1)
+
+
+ 
+ ######################################
+## parametric bootstrap under H0;
+what is sigma.sq ?
+######################################
+X <- model.matrix(~ 1, data=pulp)
+sigma.sq <- summary(mod.0)$sigma^2
+
+###################################################################
+what are you doing here?
+simu the data, 
+empirical p-calue, 0.16, indicating we should consider operator as a random effect. 
+how can we get 2.5864?
+do not get the SE part?
+################################################################
+iter <- 1000
+lrstat <- rep(0, iter)
+
+for(i in 1:iter){
+print(i)
+y <- c(rmvnorm(1, X%*%coef(mod.0), sigma.sq*diag(N)))
+fit.null <- lm(y ~ 1)
+fit.alt <- lmer(y ~ 1 + (1|operator), data=pulp, REML=F)
+lrstat[i] <- as.numeric(2*(logLik(fit.alt) - logLik(fit.null)))
+}
+
+emp.p.value <- mean(lrstat > 2.5864)
+emp.p.value
+
+## SE of this based on binomial dist
+emp.p.value*(1-emp.p.value)/iter  ## so we can conclude that it is less than 0.05.
+
+
+############################################################
+ get the random effects
+how to interpret this?
+> ranef(mod.ml)
+$operator
+  (Intercept)
+a  -0.1092540
+b  -0.2321648
+c   0.1502243
+d   0.1911945
+################################################################
+ranef(mod.ml)
+
+############################################################
+
+### ############################################################
+
+stroke <- read.csv("stroke.csv") 
+
+## EDA
+## spaghetti plots 
+col.group <- c(rep("red", 8), rep("blue", 8), rep("green", 8))
+t <- 1:8
+plot(t, stroke[1,-c(1,2)], type="l", col=col.group[1], xlab="time", ylab="functional ability score", ylim=c(0,100))
+for(i in 1:24){
+lines(t, stroke[i,-c(1,2)], type="l", col=col.group[i])
+}
+
+
+#########################################################################################
+why use -c(1,2) here?
+
+#########################################################################################
+A.m <- apply(stroke[stroke$Group=="A",-c(1,2)], 2, mean) 
+B.m <- apply(stroke[stroke$Group=="B",-c(1,2)], 2, mean) 
+C.m <- apply(stroke[stroke$Group=="C",-c(1,2)], 2, mean) 
+
+matplot( cbind(A.m, B.m, C.m), type="l", col=c("red", "blue", "green"),xlab="time", ylab="functional ability score mean by group" )
+
+
+################################################################################
+ re-organize data; 
+y is 192= 24*8 dimension; what is y?24 is the # of rows of stroke; 
+but what is y?
+#################################################################################
+y <- NULL
+
+for(i in 1:nrow(stroke)){
+y.i <-  matrix(c(stroke[i, -c(1,2)]), ncol=1)
+y <- rbind(y, y.i) 
+}
+y <- unlist(y)
+
+################################################################################
+build two models, with and without random effects. 
+how to write the random effects? 
+here (time|subject) means the time is the random effect for each subject? 
+how about the (1|operator), what does that mean?
+#################################################################################
+data <- data.frame(y, rep(stroke$Subject, each=8), rep(stroke$Group, each=8), rep(1:8, 8) )
+names(data) <- c("y", "subject", "group", "time")  
+
+
+mod.lm <- lm(y ~ group + time, data=data)
+summary(mod.lm)
+
+mod <- lmer(y ~ group + time + (time|subject) , data=data)
+summary(mod)
+
+################################################################################
+ ## let''s do a wick test for the ransom effects;
+## this can be inflated, but we are well below 0.05, 
+so reject H0 in favor of random-effects model;
+the df can be seen in the summary, count them and get the diff
+#################################################################################
+test.stat <- 2*(as.numeric(logLik(mod)) - as.numeric(logLik(mod.lm)))
+1 - pchisq(test.stat, 2) ## this can be inflated, but we are well below 0.05, so reject H0 in favor of random-effects model
+
+## let''s get the random effects
+ranef(mod)
+
+## let''s get the fitted values with the random effects included
+fitted(mod)
+
+## let''s get the residuals y - E(y|gamma)
+residuals(mod)
+
+## CDA
+qqnorm(residuals(mod))  ## looks good
+plot(fitted(mod), residuals(mod))  ## looks pretty good
+
+
+
+
+
+
+
