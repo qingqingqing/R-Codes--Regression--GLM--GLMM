@@ -1,0 +1,108 @@
+##
+rm(list = ls())
+
+## Let's unbalance the previous data!
+
+##
+y1 <- c(30, 32, 28, 33, 35, 29, 34)
+y2 <- c(27, 40, 43, 34, 32)
+y3 <- c(24, 22, 31, 30, 27, 26)
+y4 <- c(42, 34, 37, 35, 33, 40, 42)
+y5 <- c(33, 29, 40, 30, 34)
+
+m <- 5
+n <- c(length(y1), length(y2), length(y3), length(y4), length(y5))
+N <- sum(n)
+
+
+#############################################################################
+##############################################################################
+optim
+#############################################################################
+############################################################################
+## Let''s use optim() to maximize the likelhood
+
+log.likelihood <- function(theta){
+	
+	mu <- theta[1]
+	sigma.sq <- theta[2]
+	sigma.sq.a <- theta[3]
+	
+	ll <- 0
+	for(i in 1:m){
+	
+	one.i <- matrix(1, nrow=n[i], ncol=1)
+	Ident.i <- diag(n[i])
+	J.i <- matrix(1, nrow=n[i], ncol=n[i])
+	
+	V.inv.i <- (1/sigma.sq)*(Ident.i - (sigma.sq.a/(sigma.sq + n[i]*sigma.sq.a))*J.i)
+	det.V.i <- (sigma.sq + n[i]*sigma.sq.a)*(sigma.sq^(n[i]-1))
+	
+
+	ll <- ll + -(n[i]/2)*log(2*pi) - (1/2)*log(det.V.i) + ((-1/2)*t(y[id==i] - mu*one.i)%*%V.inv.i%*%(y[id==i]-mu*one.i))  
+	}
+	
+   return(ll)
+}
+
+## Let''s test the function
+y.bar <- mean(c(y))
+s.sq <- var(c(y))
+s.sq.a <- var(tapply(y, id, mean))
+
+theta <- c(y.bar, s.sq, s.sq.a)
+log.likelihood(theta)
+
+## Use optim() 
+start <- c(y.bar, s.sq, s.sq.a)
+out <- optim(start, log.likelihood, hessian=TRUE, control=list(fnscale=-1), method="BFGS")
+out
+
+ll.max <- out$value
+
+assym.vcv <- -solve(out$hessian)
+assym.vcv
+diag(assym.vcv)
+
+## So we have 
+mu.hat <- out$par[1]
+sigma.sq.hat <- out$par[2]
+sigma.sq.a.hat <- out$par[3]
+
+
+#######################################################################
+#####################################################################
+ Let's use these to test the assymptotic variances of parameters
+########################################################################
+#####################################################################
+I.11 <- sum(n/(sigma.sq.hat+n*sigma.sq.a.hat))
+I.12 <- 0
+I.13 <- 0
+I.21 <- 0 
+I.22 <- (N-m)/(2*sigma.sq.hat^2) + (1/2)*sum(1/(sigma.sq.hat+n*sigma.sq.a.hat)^2)
+I.23 <- (1/2)*sum(n/(sigma.sq.hat+n*sigma.sq.a.hat)^2)
+I.31 <- 0
+I.32 <- (1/2)*sum(n/(sigma.sq.hat+n*sigma.sq.a.hat)^2)
+I.33 <- (1/2)*sum(n^2/(sigma.sq.hat+n*sigma.sq.a.hat)^2)
+
+
+I.theta <- matrix( c(I.11, I.12, I.13, I.21, I.22, I.23, I.31, I.32, I.33), 3,3)
+I.theta
+
+solve(I.theta)
+
+diag(solve(I.theta))
+
+
+## Ok let's try another function we will use later on for Gaussian random effect models!
+library(nlme)
+
+data <- groupedData(y ~ 1 | id)
+mod <- lme(y ~ 1,  random = ~ 1, method="ML", data=data)
+
+summary(mod)
+
+out$par[1]
+sqrt(out$par[2])
+sqrt(out$par[3])
+
