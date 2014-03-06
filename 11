@@ -1,0 +1,58 @@
+##
+rm(list = ls())
+###########################################
+###########################################
+build binomial model, model 2 is to add interaction term, model3 is the mean model, i.e., with no predictors.
+choose model by using anova. 1-pchisq(diff(dev), diff(df)); if great than 0.05, then perfer the 1st one. 
+drop1(mod1, test="Chisq"), p value is low, then do not drop that; if p value is high, then drop the predictor.
+interpreting the b for qualitative predictor. 
+C.I. for 
+###########################################
+###########################################
+library(faraway)
+data(babyfood)
+
+## data
+babyfood
+
+## crosstabs
+xtabs(disease/(disease + nondisease) ~ sex + food, babyfood)
+
+## fit a model with the logit link
+mod1 <- glm(cbind(disease, nondisease) ~ sex + food, family = binomial(link="logit"), data=babyfood)
+summary(mod1)
+
+model.matrix(mod1)
+
+## Does the model fit the data well?  Overall goodness-of-fit?
+## The deviance is  0.72192  with 2 degrees of freedom (6-4=2)
+1 - pchisq(0.72192, 2)
+
+## What about including an interaction between sex and food?
+mod2 <- glm(cbind(disease, nondisease) ~ sex + food + sex:food, family = binomial(link="logit"), data=babyfood)
+summary(mod2)
+
+## Notice that we are now estimating 6 paramters . . . the exact same # as the deviance for the maximimal model.
+## Thus the previous p-value tells us that an interaction is unwarrented.
+
+## But for fun
+anova(mod1, mod2)
+1 - pchisq(0.72192, 2)
+
+## Let''s test the mean model against model 1
+mod3 <- glm(cbind(disease, nondisease) ~ 1, family = binomial(link="logit"), data=babyfood)
+anova(mod3, mod1)
+1 - pchisq( 25.653, 3)
+
+## Ok lets check each of the main-effects:
+drop1(mod1, test="Chisq")
+
+## So let''s examine model 1 again:
+summary(mod1)
+
+## Breast feeding reduces the log odds of respiratory disease by -0.6693 compared to bottle feeding
+## or
+##  Breast feeding reduces the odds of respiratory disease by exp(-0.6693) # compared to bottle feeding 
+
+## Let''s get a 95% CI:
+exp(c(-0.6693 - 1.96*0.1530,  -0.6693 + 1.96*0.1530))
