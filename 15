@@ -1,0 +1,51 @@
+#################################
+rm(list = ls())
+
+HL.test <-  function (y, y.hat, g = 10) { 
+     cutyhat <- cut(y.hat, breaks = quantile(y.hat, probs = seq(0, 1, 1/g)), include.lowest = T) 
+     obs <- xtabs(cbind(1 - y, y) ~ cutyhat) 
+     exp <- xtabs(cbind(1 - y.hat, y.hat) ~ cutyhat) 
+     X.sq <- sum((obs - exp)^2/exp) 
+     P <- 1 - pchisq(X.sq, g - 2) 
+     c("X^2" = X.sq, Df = g - 2, "P(>Chi)" = P) 
+ } 
+
+
+
+## 
+data <- read.csv("WAIS.csv", header=T)
+
+y.obs <- data$s
+
+
+## fit model
+mod <- glm(s ~ x, family=binomial, data=data)
+y.hat <- round(fitted(mod),3)
+
+
+
+##  Pick cut-points as shown in the book DB pg. 143
+n.s.obs <- c(sum(y.obs[y.hat<=0.107]), sum(y.obs[y.hat>0.107 & y.hat <=0.303]), sum(y.obs[y.hat>0.303]))
+
+n.f.obs <- c(length(y.obs[y.hat<=0.107]) - sum(y.obs[y.hat<=0.107]),
+			length(y.obs[y.hat>0.107 & y.hat <=0.303]) - sum(y.obs[y.hat>0.107 & y.hat <=0.303]),
+			length(y.obs[y.hat>0.303]) - sum(y.obs[y.hat>0.303]))
+
+n.s.exp <- c(sum(y.hat[y.hat<=0.107]), sum(y.hat[y.hat>0.107 & y.hat <=0.303]), sum(y.hat[y.hat>0.303]))
+
+n.f.exp <- c(length(y.hat[y.hat<=0.107]) - sum(y.hat[y.hat<=0.107]) , 
+			length(y.hat[y.hat>0.107 & y.hat <=0.303]) - sum(y.hat[y.hat>0.107 & y.hat <=0.303]), 
+			length(y.hat[y.hat>0.303]) - sum(y.hat[y.hat>0.303]))
+
+obs <- c(n.s.obs, n.f.obs)
+exp <- c(n.s.exp, n.f.exp)
+
+X.sq <- sum((obs-exp)^2/exp)
+X.sq
+
+1-pchisq(X.sq, 1)
+
+## Use the function
+HL.test(y.obs, y.hat, g=3)
+
+
