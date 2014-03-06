@@ -1,0 +1,44 @@
+##
+rm(list = ls())
+###########################################
+############################################
+var of b * phi = var of b in the model corrected by overdispersion;
+overdispersion; 
+F test; 
+interaction plots
+###########################################
+###########################################
+library(faraway)
+
+## data
+data(troutegg)
+
+## ftable() - used to create a flat contigency table
+ftable(xtabs(cbind(survive, total) ~ location + period, troutegg))
+
+## fit a main effects model
+bmod <- glm(cbind(survive, total-survive) ~ location + period, family=binomial, data=troutegg)
+summary(bmod)
+
+
+## let''s check for outliers
+halfnorm(residuals(bmod)) # maybe an outlier
+
+## let''s check for an interaction between location and time
+elogits <- log( (troutegg$survive + 0.5)/( troutegg$total - troutegg$survive + 0.5))
+interaction.plot(troutegg$period, troutegg$location, elogits) # maybe some interaction
+
+## let''s check for overdispersion
+sigma.sq <- sum(residuals(bmod, type="pearson")^2/12)
+sigma.sq ## under binomial assumption this should be equal to 1
+
+## let''s try to drop a term
+drop1(bmod, scale=sigma.sq, test="F")
+
+
+## let''s correct the se''s of the betas
+summary(bmod, dispersion=sigma.sq)
+
+## by hand
+sqrt(0.2813^2*sigma.sq)
+
