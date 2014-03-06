@@ -1,0 +1,42 @@
+##
+rm(list = ls())
+###########################################
+##########################################
+build an identity glm model for possion data; 
+deviance test; 
+just loglikelihood of max model(degree m= # of obs) at estimation of b, 
+is sum(dpoi(y,y,log=2)); log=2 means loglikeli, 1st y means the obs, 
+2nd y means estimation of parameter
+###########################################
+###########################################
+## GLM
+
+y <- c(2, 3, 6, 7, 8, 9, 10, 12, 15)
+x <- c(-1, -1, 0, 0, 0, 0, 1, 1, 1)
+n <- length(y)
+
+##
+mod <- glm(y ~ x, family=poisson(link="identity"))
+summary(mod)
+
+##
+l.b.max <- sum(dpois(y,y, log=2))
+l.b.max
+
+lambda.hat <- mod$coef[1] + mod$coef[2]*x
+l.b <- sum(dpois(y,lambda.hat, log=2))
+l.b
+
+
+D <- 2*(l.b.max-l.b)
+D
+
+
+## let''s see visually
+x <- seq(0,10,0.1)
+
+plot(x, dchisq(x, n-2), type="l")
+abline(v=D, col="red", lwd=2)
+
+1- pchisq(D, df=n-2)
+
