@@ -1,0 +1,103 @@
+#####################################
+rm(list = ls())
+
+library(faraway)
+
+## data
+data(dicentric)
+
+## EDA
+round(xtabs(ca/cells ~ doseamt+doserate, dicentric),2)
+with(dicentric, interaction.plot(doseamt, doserate, ca/cells)) # may have an interaction on the lower end
+
+
+
+## Try a Gaussian model
+lmod <- lm(ca/cells ~ log(doserate) + factor(doseamt) + log(doserate)*factor(doseamt), data=dicentric)
+summary(lmod)
+
+
+## Examine residuals
+plot(lmod$fit, lmod$res)  ## non-constant variance
+
+## Try a transform
+lmod <- lm(log(ca/cells) ~ log(doserate) + factor(doseamt) + log(doserate)*factor(doseamt), data=dicentric)
+plot(lmod$fit, lmod$res)  ## looks a lot better
+
+#################################################################
+### Suppose we want to model the counts directly
+pmod <- glm(ca ~ log(cells) + log(doserate) + factor(doseamt) + log(doserate)*factor(doseamt), data=dicentric, family=poisson)
+summary(pmod)  ## notice coefficient for log(cells)  is roughly 1
+
+## offset
+pmod <- glm(ca ~ offset(log(cells)) + log(doserate) + factor(doseamt) + log(doserate)*factor(doseamt), data=dicentric, family=poisson)
+summary(pmod)  
+
+## deviance test
+1 - pchisq(21.75, 21)
+
+## Why does a poisson model account for non-constant variance?
+
+##########################################################################
+##########################################################################
+build a glm possion model, not good; 
+build a glm nb model in two ways, good; 
+note to liabary(MASS); 
+got the fitted values of the model; u.hat = exp(eta.hat)
+##########################################################################
+##########################################################################
+## Negative Binomial
+
+#################################
+rm(list = ls())
+
+library(faraway)
+
+## data
+data(gala)
+gala <- gala[,-2]
+
+##
+mod <- glm(Species ~  Area + Elevation + Nearest + Scruz + Adjacent, data=gala, family=poisson)
+summary(mod)
+
+
+## GOF
+1-pchisq(716.85, 30-6)  ## not a good fit
+
+
+##
+phi <- sum(residuals(mod, type="pearson")^2)/(30-6)
+phi
+
+
+##  Let''s formally model the extra variation
+mod.nb <- glm(Species ~  Area + Elevation + Nearest + Scruz + Adjacent, family=negative.binomial(1), data=gala)
+summary(mod.nb)
+
+## Check GOF
+1-pchisq(20.741, 24)
+
+
+## Let''s calculate the fitted values
+X <- model.matrix(mod.nb)
+eta.hat <- X%*%mod.nb$coef
+mu.hat <- exp(eta.hat)
+mu.hat
+
+# or
+fitted(mod.nb)
+
+
+## Let''s estimate k
+library(MASS)
+mod.nb.k <- glm.nb(Species ~  Area + Elevation + Nearest + Scruz + Adjacent, data=gala)
+summary(mod.nb.k)
+
+## Check GOF
+1 - pchisq(33.196, 24)  # still would not reject the model
+
+
+
+
+
