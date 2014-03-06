@@ -1,0 +1,163 @@
+##
+rm(list = ls())
+
+## data
+y <- read.csv("pressure.csv", header=T)
+lambda <- 2
+N <- dim(y)[[1]]
+
+
+
+
+## Fisher-Scoring
+
+U.theta <- function(theta){
+out <- (2*sum(y^2))/theta^3 - (2*N)/theta
+return(out)
+}
+
+
+I.theta <- function(theta){
+out <- (4*N)/theta^2
+return(out)
+}
+
+
+##
+tol <- 1e-10
+
+theta.start <- mean(y)
+test <- 10000
+it <- 1
+
+while (test > tol){
+print(it)
+
+if(it==1){
+ theta.mm1 <- theta.start
+}
+
+theta.m <- theta.mm1 + U.theta(theta.mm1)/I.theta(theta.mm1)
+
+it <- it+1
+test <- abs(theta.m-theta.mm1)
+theta.mm1 <- theta.m
+}
+
+
+theta.hat <- theta.m
+var.theta.hat <- 1/I.theta(theta.hat)
+
+theta.hat
+var.theta.hat
+
+## 95% CI 
+theta.hat - qnorm(0.975)*sqrt(var.theta.hat)
+theta.hat + qnorm(0.975)*sqrt(var.theta.hat)
+
+## You should compare this to writing out the likelihood and using optim().
+
+###########################################
+###########################################
+## GLM
+
+y <- c(2, 3, 6, 7, 8, 9, 10, 12, 15)
+x <- c(-1, -1, 0, 0, 0, 0, 1, 1, 1)
+N <- length(y)
+
+
+X <- as.matrix(cbind(rep(1, N), x))
+
+
+
+###############################
+## Matrices
+
+W <- function(b){
+eta <- X%*%b
+out <- matrix(0, N, N)
+diag(out) <- 1/eta
+return(out)
+} 
+
+
+##
+tol <- 1e-10
+
+beta.start <- c(10,2)
+test <- 10000
+it <- 1
+
+while (test > tol){
+print(it)
+
+if(it==1){
+beta.mm1 <- beta.start
+}
+
+W.mm1 <- W(beta.mm1)
+beta.m <- solve(t(X)%*%W.mm1%*%X)%*%t(X)%*%W.mm1%*%y 
+
+it <- it+1
+test <- sum(abs(beta.m-beta.mm1))
+beta.mm1 <- beta.m
+}
+
+
+beta.hat <- beta.m
+var.beta.hat <- diag(solve(t(X)%*%W.mm1%*%X))
+
+
+beta.hat
+var.beta.hat
+###########################################
+## using the lm() function
+
+
+w.ii <- function(b){
+eta <- X%*%b
+out <- 1/eta
+return(out)
+} 
+
+
+##
+tol <- 1e-10
+
+beta.start <- c(10,2)
+test <- 10000
+it <- 1
+
+while (test > tol){
+print(it)
+
+if(it==1){
+beta.mm1 <- beta.start
+}
+
+
+beta.m <- lm(y~x, weights=w.ii(beta.mm1))$coef
+
+it <- it+1
+test <- sum(abs(beta.m-beta.mm1))
+beta.mm1 <- beta.m
+}
+
+
+beta.hat <- beta.m
+var.beta.hat <- diag(solve(t(X)%*%W.mm1%*%X))
+
+beta.hat
+var.beta.hat
+
+############################################
+## Using the glm function
+
+mod <- glm(y ~ x, family=poisson(link="identity"))
+summary(mod)
+
+beta.hat
+sqrt(var.beta.hat)
+
+
+
