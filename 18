@@ -1,0 +1,81 @@
+#################################
+rm(list = ls())
+
+##
+library(faraway)
+
+## data
+data(nes96)
+
+sPID <-  nes96$PID
+#####################################################
+why three I's? 
+####################################################
+levels(sPID) <- c("D","D", "I", "I", "I", "R", "R")
+
+inca <- c(1.5, 4, 6, 8, 9.5, 10.5, 11.5, 12.5, 13.5, 14.5, 16, 18.5, 21, 23.5, 27.5, 32.5, 37.5, 42.5, 47.5, 55, 67.5, 82.5, 97.5, 115)
+income <- inca[unclass(nes96$income)]
+
+educ <- nes96$educ
+age <- nes96$age
+
+### EDA
+summary(income)
+table(educ)
+
+## plots
+matplot(prop.table(table(educ, sPID),1), type="l", xlab="educ", ylab="prop", col= c("blue", "green", "red"))
+
+il <- c(8, 26, 42, 58, 74, 90, 107)
+cutinc <- cut(income, 7)
+matplot(il, prop.table(table(cutinc, sPID),1), type="l", xlab="income", ylab="prop", col= c("blue", "green", "red"))
+
+al <- c(24, 34, 44, 54, 65, 75, 85)
+cutage <- cut(age,7)
+matplot(prop.table(table(cutage, sPID),1), type="l", xlab="age", ylab="prop", col= c("blue", "green", "red"))
+
+############################################################################
+note the write the library(nnet) in order to use multimom model
+############################################################################
+## let''s fit a model
+library(nnet)
+
+mmod <- multinom(sPID ~ age + educ + income) 
+summary(mmod)
+
+mmod.aic <- step(mmod)
+
+## deviance test for dropping educ & age
+diff.dev <- deviance(mmod.aic) - deviance(mmod)
+1 - pchisq(diff.dev, 18-4) # do reject the smaller model
+
+##
+summary(mmod.aic)
+###############################################################################
+prediction
+##################################################################################
+predict(mmod.aic, data.frame(income), type="probs")
+predict(mmod.aic, data.frame(income=il), type="probs")
+
+## just most probable for each income group
+predict(mmod.aic, data.frame(income=il))
+
+
+#############################################################################
+the predi of u
+#############################################################################
+## let''s predict for an income of 0
+cc <- c(0, -1.174933, -0.950359)
+exp(cc)/sum(exp(cc)) 
+predict(mmod.aic, data.frame(income=0), type="probs")
+
+########################################################################
+how to interpret this part? 
+#########################################################################
+## let''s look at a change for $1,000 of income
+pp <- predict(mmod.aic, data.frame(income=c(0,1)), type="probs")
+pp
+
+## log-odds correspond to slopes
+log( pp[2,2]/pp[2,1]) - log( pp[1,2]/pp[1,1])
+log( pp[2,3]/pp[2,1]) - log( pp[1,3]/pp[1,1])
