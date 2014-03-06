@@ -1,0 +1,53 @@
+##
+rm(list = ls())
+###########################################
+###########################################
+for binomial data, we build three models, logit, probit, and cloglog; 
+**find the fitted values for the three models, 
+coef in probit * 1.6 is about coef in logit.
+###########################################
+###########################################
+library(faraway)
+
+###########
+data(bliss)
+bliss
+
+##
+modl <- glm(cbind(dead,alive) ~ conc, family=binomial, data=bliss)
+modp <- glm(cbind(dead,alive) ~ conc, family=binomial(link=probit), data=bliss)
+modc <- glm(cbind(dead,alive) ~ conc, family=binomial(link=cloglog), data=bliss)
+
+## get the fitted values on the probability scale
+fitted(modl)
+fitted(modp)
+fitted(modc)
+
+## a little easier to read
+cbind(fitted(modl), fitted(modp), fitted(modc))
+
+## let''s plot the predicted probalities over a range
+x <- seq(-2, 8, 0.1)
+etal <- modl$coef[1] + modl$coef[2]*x
+etap <- modp$coef[1] + modp$coef[2]*x
+etac <- modc$coef[1] + modc$coef[2]*x
+
+
+pl <- exp(etal)/(1+exp(etal))
+pp <- pnorm(etap)
+pc <- 1-exp(-exp(etac))
+
+plot(x, pl, lwd=2, type="l")
+lines(x, pp, col="blue", lwd=2)
+lines(x, pc, col="brown", lwd=2)
+
+
+## let''s check out the tails comparing the logit to the other two
+plot(x, pp/pl, type="l")
+plot(x, pc/pl, type="l")
+
+## let''s check the 1.6 trick - rough estimate
+modp$coef*1.6
+modl$coef
+
+
