@@ -1,0 +1,143 @@
+##
+rm(list = ls())
+
+strike <- c(2, 2, 3, 0, 1, 1)
+not.strike <- c(2, 2, 0, 2, 0, 0)
+
+Y <- data.frame(strike, not.strike)
+n.i <- apply(Y, 1, sum)
+
+###
+### mles
+pi.i.hat <- strike/n.i
+pi.i.hat
+
+
+# some are three are 1 and one is zero.
+#############################################################################
+############################################################################
+important
+####### let''s calculate the usual chisq-test (o-e)^2/e.  Under the null hypothesis the two factors are independent so
+####### this means that prob.of strike is the same for each snake or pi.i.hat = pi.hat for all i.
+6.666667? p-value = 0.2466 what conclusion does this lead? 
+I think it is do not reject the null hypo, i.e., p.i = p
+############################################################################
+############################################################################
+# let''s get the expected values
+prob.strike <- sum(strike)/sum(n.i)
+prob.strike
+
+exp.num.strike <- n.i*prob.strike
+exp.num.not.strike <- n.i*(1-prob.strike)
+
+chi.sq.ts.obs <- sum( (strike - exp.num.strike)^2/exp.num.strike ) + sum( (not.strike - exp.num.not.strike)^2/exp.num.not.strike ) 
+chi.sq.ts.obs 
+
+chi.sq.ts.obs > qchisq(0.95, (nrow(Y)-1)*(ncol(Y)-1))
+
+1-pchisq(chi.sq.ts.obs, (nrow(Y)-1)*(ncol(Y)-1))
+
+## use the function
+chisq.test(Y)
+
+## ok cannot reject H0
+
+
+###################################################
+false, what conclusion does this lead?
+###################################################
+####### Let''s compare to the likelihood-ratio test
+
+## log.likelihood
+log.likelihood <- function(theta){
+	pi <- theta[1:6]
+	ll <- sum(strike*log( pi/(1-pi)) + n.i*log(1-pi))
+	return(ll)	
+}
+
+
+## under H0 pi.i.hat = pi.hat for all i.
+pi.0.hat <- sum(strike)/sum(n.i)
+pi.0.hat
+
+ll.0 <- log.likelihood(rep(pi.0.hat,6))
+ll.0
+
+ll <- log.likelihood(pi.i.hat) 
+ll
+
+pi.i.hat[pi.i.hat==0] <- 0.0000001
+pi.i.hat[pi.i.hat==1] <- 0.9999999
+
+ll <- log.likelihood(pi.i.hat) 
+ll
+
+chi.sq.ts.obs2 <-  -2*(ll.0-ll)
+chi.sq.ts.obs2
+
+chi.sq.ts.obs2 > qchisq(0.95, 6-1)
+
+################################################
+## let''s try optim()
+
+start <- rep(0.1, 6)
+out <- optim(start, log.likelihood, hessian=TRUE, control=list(fnscale=-1, trace=1), method="BFGS")
+
+out <- optim(start, log.likelihood, hessian=TRUE, control=list(fnscale=-1, trace=1), method="Nelder-Mead")
+
+out <- optim(start, log.likelihood, hessian=TRUE, control=list(fnscale=-1, trace=1), method="CG")
+
+out <- optim(start, log.likelihood, hessian=TRUE, control=list(fnscale=-1, trace=1), method="SANN")
+out
+
+out <- optim(start, log.likelihood, hessian=TRUE, control=list(fnscale=-1, trace=1, maxit=100000), method="SANN")
+out
+
+######################################################
+###################################################
+###################################################
+####################################################
+## First calculate Lambda then take -2*log!
+## This avoids log(0)!
+
+strike <- c(2, 2, 3, 0, 1, 1)
+not.strike <- c(2, 2, 0, 2, 0, 0)
+
+Y <- data.frame(strike, not.strike)
+n.i <- apply(Y, 1, sum)
+
+###
+### mles
+pi.i.hat <- strike/n.i
+pi.i.hat
+
+pi.hat <- sum(strike)/sum(n.i)
+
+Lambda <- prod( pi.i.hat^(strike) *(1-pi.i.hat)^(n.i-strike) )/prod( pi.hat^(strike) *(1-pi.hat)^(n.i-strike) )
+chi.sq.ts.obs3 <- -2*log(Lambda)
+chi.sq.ts.obs3
+
+chi.sq.ts.obs3 > qchisq(0.95, 6-1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
