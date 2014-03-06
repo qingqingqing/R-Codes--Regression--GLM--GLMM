@@ -1,0 +1,59 @@
+## Let''s estimate theta from the mortality example  
+##
+rm(list = ls())
+##############################################################
+################################################################
+optim and glm
+##############################################################
+################################################################
+## data
+y <- c(1, 5, 5, 12, 25, 38, 54, 65)
+n <- c(17742, 16554, 16059, 13083, 10784, 9645, 10706, 9933)
+age <- 1:8  #age group = 1 [30-34], age group = 8 [65-69]
+
+X <- matrix(cbind(log(n), rep(1,8), age), 8, 3)
+
+
+
+## write out the loglikelhood
+log.likelihood <- function(gamma){
+	
+	alpha <- gamma[1]
+	theta <- gamma[2]
+	
+	beta <- matrix(c(1, alpha, theta), 3, 1)
+	eta <- X%*%beta
+	
+	ll <- sum(dpois(y, exp(eta), log=T))
+
+	return(ll)
+}
+
+
+## Use optim() 
+start <- c(1,1)
+out <- optim(start, log.likelihood, hessian=TRUE, control=list(fnscale=-1), method="BFGS")
+out
+
+
+# Use the glm command 
+mod.a <- glm(y ~  age + offset(log(n)), family=poisson)
+summary(mod.a)
+
+
+## Get the means based on the observed X
+X <- matrix(cbind(log(n), rep(1,8), age), 8, 3)
+beta <- matrix(c(1, out$par[1:2]), 3, 1)
+eta <- X%*%beta
+exp(eta)
+
+## use the glm function
+mod.a$fit
+
+##
+plot(mod.a$fit, y) 
+abline(0,1)
+
+## Look''s like there is some curvature there, maybe try a transformation on age?
+## You can try.
+
