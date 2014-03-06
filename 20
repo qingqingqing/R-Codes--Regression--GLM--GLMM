@@ -1,0 +1,173 @@
+#################################
+rm(list = ls())
+
+library(faraway)
+
+## data
+data(gala)
+gala <- gala[,-2]
+
+##
+mod <- glm(Species ~  Area + Elevation + Nearest + Scruz + Adjacent, data=gala, family=poisson)
+summary(mod)
+
+##################################################################################
+residual plots: mu.hat vs res, eta.hat vs res, mu.hat vs resp.res.
+it is better to use eta.hat vs res/reps.res, 
+cause the other one may lead cluster, and using eta.hat is more direct and clearer.
+####################################################################################
+### residual plots
+par(mfrow=c(2,2))
+
+X <- model.matrix(mod)
+eta.hat <- X%*%mod$coef
+mu.hat <- exp(eta.hat)
+
+dev.res <- residuals(mod)
+resp.res <- residuals(mod, "response")
+
+plot(mu.hat, dev.res)
+plot(eta.hat, dev.res)
+plot(eta.hat, resp.res)
+
+################################################################################
+plot y vs predictor. 
+#################################################################################
+### response against covariates - after model is fit
+y <- gala$Species
+area <- gala$Area
+
+par(mfrow=c(2,2))
+
+plot(area, y)
+plot(log(area), y)
+
+z <- eta.hat + (y-mu.hat)*(1/mu.hat)
+plot(log(area), z)
+
+
+## how abaout just fit the model with the covariate of interest
+mod.2 <- glm(Species ~  Area, data=gala, family=poisson)
+z <- predict(mod.2, type="link")
+plot(log(area), z)  ## a bit tricky
+
+############################################################################
+log model, take log to the predictors
+###############################################################################
+## taking the log of all the variables improves the fit immensely (but still not a good fit)
+mod.log <- glm(Species ~  log(Area) + log(Elevation) + log(Nearest) + log(Scruz + 0.1) + log(Adjacent), data=gala, family=poisson)
+summary(mod.log)
+
+deviance(mod)
+deviance(mod.log)
+
+
+## partial residual plot
+par(mfrow=c(1,1))
+
+mu.hat <- predict(mod.log, type="response")
+u <- (y - mu.hat)*(1/mu.hat) + coef(mod.log)[2]*log(area)
+
+plot(log(area), u)
+abline(0, coef(mod.log)[2])
+
+
+## ok compare log vs non-log again 
+## linearized response (z) against linear predictor (eta)
+par(mfrow=c(1,2))
+############################################################################
+note here the predict func, 
+type = "link", is to get the prediction of eta; 
+type = "response", is to get the prediction of u.
+###############################################################################
+mu.hat.log <- predict(mod.log, type="response")
+eta.hat.log <- predict(mod.log, type="link")
+z.log <- eta.hat.log + (y-mu.hat.log)*(1/mu.hat.log)
+
+
+mu.hat <- predict(mod, type="response")
+eta.hat <- predict(mod, type="link")
+z <- eta.hat + (y-mu.hat)*(1/mu.hat)
+
+plot(eta.hat, z)
+abline(0,1)
+
+plot(eta.hat.log, z.log)
+abline(0,1)
+
+
+## unusual points
+#######################################################
+check unusual poits; 
+use halfnorm(res) halfnorm(influence) and halfnorm(cooks.dis) 
+plot coef of one predi in the influence. 
+#########################################################
+par(mfrow=c(2,2))
+halfnorm(residuals(mod.log))
+
+gali <- influence(mod.log) # h_{i}
+halfnorm(gali$hat) 
+
+halfnorm(cooks.distance(mod.log))
+
+plot(gali$coef[,5], ylab="Change in Scruz Coef", xlab="Case Number")
+
+################################
+Ö±½ÓÓÃinfluence(mod.log)$coef[25,]²»¾ÍÐÐÁË? 
+##############################
+## compare coefficients with and without case 25
+mod.log.m25 <-  glm(Species ~  log(Area) + log(Elevation) + log(Nearest) + log(Scruz + 0.1) + log(Adjacent), data=gala, family=poisson, subset=-25)
+cbind(coef(mod.log), coef(mod.log.m25))
+
+
+## maybe due to the 0.1 try 1
+mod.log <-  glm(Species ~  log(Area) + log(Elevation) + log(Nearest) + log(Scruz + 1) + log(Adjacent), data=gala, family=poisson)
+
+
+par(mfrow=c(2,2))
+halfnorm(residuals(mod.log))
+
+gali <- influence(mod.log) # h_{i}
+halfnorm(gali$hat) 
+
+halfnorm(cooks.distance(mod.log))
+
+plot(gali$coef[,5], ylab="Change in Scruz Coef", xlab="Case Number")
+
+
+## 
+summary(mod.log)
+
+## ####################################################
+calculate dispersion parameter
+##########################################################
+phi <- sum(residuals(mod.log, type="pearson")^2)/(mod.log$df.res)
+summary(mod.log, dispersion=phi)
+
+## #######################################################
+formally test
+#########################################################
+mod.large <-  glm(Species ~  log(Area) + log(Elevation) + log(Nearest) + log(Scruz + 1) + log(Adjacent), data=gala, family=poisson)
+mod.small <- glm(Species ~  log(Area) + log(Adjacent), data=gala, family=poisson)
+ 
+dev.large <- deviance(mod.large)
+dev.small <- deviance(mod.small)
+
+
+F.stat <- ( (dev.small - dev.large)/(mod.small$df.res - mod.large$df.res) )/(dev.large/mod.large$df.res)
+F.stat.2 <- ( (dev.small - dev.large)/(mod.small$df.res - mod.large$df.res) )/(phi)
+
+1 - pf(F.stat,  mod.small$df.res - mod.large$df.res, mod.large$df.res)
+
+
+############################################################
+ choose smaller model
+###############################################################
+phi.small <- sum(residuals(mod.small, type="pearson")^2)/(mod.small$df.res)
+summary(mod.small, dispersion=phi.small)
+
+######################################################
+ still not a good overall fit . . . move to negative binomial model.
+####################################################################
+
+
