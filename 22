@@ -1,0 +1,104 @@
+##
+rm(list = ls())
+library(lme4)
+
+## ###########################################################################
+note that here the method to treat a predictor as continuous
+#################################################################################
+data <- cbpp
+data$period <- c(data$period) # treat period as continuous. 
+data
+N <- nrow(data)
+
+## ###########################################################################
+fit models, with one predictor, two predictors and with interaction; 
+#################################################################################
+ 
+mod.glm <- glm(cbind(incidence, size - incidence) ~ period, family = binomial, data = data)
+summary(mod.glm)
+
+mod.glm.2 <- mod.glm <- glm(cbind(incidence, size - incidence) ~ period + herd, family = binomial, data = data)
+summary(mod.glm.2)
+
+mod.glm.3 <- mod.glm <- glm(cbind(incidence, size - incidence) ~ period + herd + period:herd, family = binomial, data = data)
+summary(mod.glm.3)
+
+drop1(mod.glm.3, test="Chisq") ## seems the interaction can be dropped at the 0.05 level 
+
+
+## ###########################################################################
+## But we may think of these herds as smapled from a population of herds.
+## Or we might want to account for herd depedence in the data through a randome effects approach
+## GLMM
+note here we use glmer, not lmer or glm, compare this to lmer in code 21; 
+note here we consider herd as random effect, (period | herd); 
+note here how we drop the random slop of the random effects part.
+#################################################################################
+
+mod.glmm  <- glmer(cbind(incidence, size - incidence) ~ period + (period | herd), family = binomial, data = data)
+summary(mod.glmm)
+
+
+## Can we drop the random slope?  Let''s use empirical bootstrap to test
+mod.null  <- glmer(cbind(incidence, size - incidence) ~ period + (1 | herd), family = binomial, data = data)
+eta.null.hat <- fitted(mod.null)
+
+## ###########################################################################
+ mean(lrtest.obs > lrtest) = 0.7708333, this is the p-value, indicates we can drop the random slope.
+## through out negative values due to convergence isssues! 
+As the deviance for the larger model should be smaller or the same as the smaller model!
+#################################################################################
+iter <- 100 # you should run at least 1000 but for time I am only doing 100
+lrtest <- rep(0, iter)
+
+for(it in 1:iter){
+print(it)
+	
+	y <- rbinom(N, data$size, eta.null.hat)
+	
+	mod.0 <- glmer(cbind(y, data$size - y) ~ period + (1 | herd), family = binomial, data = data)
+	mod.1 <- glmer(cbind(y, data$size - y) ~ period + (period | herd), family = binomial, data = data)
+	
+	lrtest[it] <- deviance(mod.0) - deviance(mod.1)
+	
+}
+
+
+mod.null  <- glmer(cbind(incidence, size - incidence) ~ period + (1 | herd), family = binomial, data = data)
+mod.alt <-  glmer(cbind(incidence, size - incidence) ~ period + (period | herd), family = binomial, data = data)
+
+lrtest.obs <- deviance(mod.null) - deviance(mod.alt)
+
+## through out negative values due to convergence isssues! As the deviance for the larger model should be smaller or the same as the smaller model!
+lrtest <- lrtest[lrtest>=0]
+mean(lrtest.obs > lrtest)  # thus we can drop the random slope!
+
+summary(mod.null)
+
+
+########################################################################
+## Interpreting Poisson Coeffients
+## let''s look at the coup data and just main effects?
+########################################################################
+
+
+library(faraway)
+
+mod <- glm(miltcoup ~ oligarchy + log(parties+1), family=poisson, data=africa)
+summary(mod)
+
+## oligarchy
+exp(0.12147)
+## The expected multiplicative increase in the number of coups is 1.129 or a 12.9% increase in the number of coups
+
+# factor(pollib)1 
+exp(-0.75169)
+## The expected multiplicative increase in the number of coups is 0.472 or a 52.8% decrease in the number of coups
+
+## log(parties + 1)
+exp(0.01130)
+## The expected multiplicative increase in the number of coups is 1.011364 or a 1.1% increase in the number of coups
+
+## etc!
+
+
