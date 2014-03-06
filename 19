@@ -1,0 +1,119 @@
+rm(list = ls())
+
+##
+library(faraway)
+
+## data
+data(nes96)
+
+sPID <-  nes96$PID
+levels(sPID) <- c("D","D", "I", "I", "I", "R", "R")
+
+inca <- c(1.5, 4, 6, 8, 9.5, 10.5, 11.5, 12.5, 13.5, 14.5, 16, 18.5, 21, 23.5, 27.5, 32.5, 37.5, 42.5, 47.5, 55, 67.5, 82.5, 97.5, 115)
+income <- inca[unclass(nes96$income)]
+
+educ <- nes96$educ
+age <- nes96$age
+
+#############################################################################
+note to write library(MASS) in order to write polr model; 
+use step and aic to choose a better model, 
+use deviance to check
+#############################################################################
+## Ordered logit
+library(MASS)
+mod <- polr(sPID ~ age + educ + income)
+
+## Variable selection via AIC
+mod.aic <- step(mod)
+summary(mod.aic)
+
+## Check via Deviance
+dev <- deviance(mod.aic)- deviance(mod)
+df <- mod$edf -  mod.aic$edf
+1- pchisq(dev, df)
+
+######################################################################################
+what is the assumption? 
+emp.gamma.d and emp.gamma.i are two cut points; 
+how to check via the plot?
+#######################################################################################
+## Check propotional odds assumption  - why is this a check?
+pim <- prop.table(table(income, sPID),1)
+emp.gamma.d <- pim[,1]
+emp.gamma.i <- pim[,1]+pim[,2]
+
+logit(emp.gamma.d) - logit(emp.gamma.i)
+plot(inca, logit(emp.gamma.d) - logit(emp.gamma.i))
+
+################################################################################
+get the prob(Y<= j) and prob(Y = j) when x=0
+##################################################################################
+## Examine results again
+summary(mod.aic)
+
+## Suppose x=0
+x <- 0
+gamma.d <- ilogit(0.2091 - mod.aic$coef*x)
+gamma.i <- ilogit(1.2916  - mod.aic$coef*x)
+gamma.r <- 1
+
+prob.d <- gamma.d
+prob.i <- gamma.i - gamma.d
+prob.r <- gamma.r - gamma.i
+
+prob.d
+prob.i
+prob.r
+################################################################################
+get the prob(Y<= j) and prob(Y = j) 
+##################################################################################
+## Make a plot of the probabilities as x changes
+x <- inca
+gamma.d <- ilogit(0.2091 - mod.aic$coef*x)
+gamma.i <- ilogit(1.2916  - mod.aic$coef*x)
+gamma.r <- 1
+
+prob.d <- gamma.d
+prob.i <- gamma.i - gamma.d
+prob.r <- gamma.r - gamma.i
+
+matplot(x, cbind(prob.d, prob.i, prob.r), col=c("blue", "green", "red"), type="l", ylab="probabilities", xlab="income")
+
+ 
+################################################################################
+get the prob(Y = j) directly
+##################################################################################
+## We can get the above probabilities more directly by
+predict(mod.aic, data.frame(income=inca, row.names=inca))
+predict(mod.aic, data.frame(income=inca, row.names=inca), type="probs")
+
+######################################################################
+plot the two points when x=0, x=50, and x=100
+########################################################################
+## 
+z <- seq(-4, 4, by=0.001)
+plot(z, dlogis(z), type="l", lwd=2)
+
+abline(v=c(0.209, 1.292), lwd=2, col="black")
+
+x <- 50
+abline(v=c(0.209 - mod.aic$coef*x, 1.292- mod.aic$coef*x), lwd=2, col="brown")
+
+x <- 100
+abline(v=c(0.209 - mod.aic$coef*x, 1.292 - mod.aic$coef*x), lwd=2, col="orange")
+
+
+######################################################################
+which should we use? the mod.prob or mod.aic?
+se.hat for what? maybe can get C.I. 
+######################################################################
+## Ordered probit
+library(MASS)
+mod.prob <- polr(sPID ~ income, method="probit", Hess = TRUE)
+summary(mod.prob)
+
+## why t-dist? Strange. Perhaps to be conservative.
+se.hat <- sqrt(diag(solve(mod.prob$Hess)))
+
+
