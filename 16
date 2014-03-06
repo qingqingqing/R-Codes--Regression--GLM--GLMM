@@ -1,0 +1,44 @@
+##################################
+rm(list = ls())
+
+library(faraway)
+
+## data
+data(gala)
+help(gala)
+
+gala <- gala[,-2]
+
+##
+mod <- glm(Species ~  Area + Elevation + Nearest + Scruz + Adjacent, data=gala, family=poisson)
+summary(mod)
+
+
+## GOF
+1-pchisq(716.85, 30-6)  ## not a good fit
+
+## Proportion of deviance explained ## similar to 1 - RSS/TSS
+1 - 716.85/3510.73
+
+## check for outliers
+halfnorm(residuals(mod))
+
+## plot mean and variance on the log scale
+plot(log(fitted(mod)), log((gala$Species - fitted(mod))^2) , xlab=expression(hat(mu)), ylab=expression( (y-hat(mu))^2))
+abline(0,1)
+
+
+## correct for overdispersion
+
+phi <- sum(residuals(mod, type="pearson")^2)/(30-6)
+phi
+
+summary(mod, dispersion=phi)
+
+
+## check inflation of standard error for Area
+sqrt(2.627e-05^2*phi)
+
+## F-test when overdispered
+drop1(mod, scale=phi, test="F")
+
