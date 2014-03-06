@@ -1,0 +1,164 @@
+# Load data and basic summary
+library(faraway)
+data(gavote)
+head(gavote)
+dim(gavote)
+summary(gavote)
+
+## Create undercount variable
+gavote$undercount <- (gavote$ballots-gavote$votes)/gavote$ballots
+head(gavote)
+n <- nrow(gavote)
+
+
+##
+summary(gavote$undercount)
+
+
+# Some plots of the undercount
+par(mfrow=c(2,2))
+hist(gavote$undercount, main="Undercount", xlab="Percent Undercount")
+plot(density(gavote$undercount), main="Undercount")
+rug(gavote$undercount)
+
+boxplot(gavote$undercount, main="Undercount", col="yellow")
+
+
+# Some plots of the voting machines
+par(mfrow=c(1,2))
+pie(table(gavote$equip), col= gray(0:4/4), cex=0.7)
+barplot(sort(table(gavote$equip), decreasing=TRUE), col=1:5, cex.names=0.7, las=2)
+
+# Calculate some quantities
+gavote$pergore <- gavote$gore/gavote$votes
+gavote$perbush <- gavote$bush/gavote$votes
+
+# Some more plots
+par(mfrow=c(2,2))
+plot(pergore ~ perAA, data=gavote)
+plot(pergore ~ perbush, data=gavote)
+plot(undercount ~ equip, data=gavote)
+
+
+# Correlations
+pick <- c(11, 10, 3,12)
+cor(gavote[,pick])
+
+
+# Crosstabs
+xtabs(~ atlanta + rural, gavote)
+
+# Let''s fit a model
+lmod1 <- lm(undercount ~ pergore + perAA, data=gavote)
+summary(lmod1)
+
+## Let''s center some variables for interpretation
+gavote$cpergore <- gavote$pergore-mean(gavote$pergore)
+gavote$cperAA <- gavote$perAA-mean(gavote$perAA)
+
+# Let''s fit a model
+lmod2 <- lm(undercount ~ cpergore + cperAA + rural + equip + rural*cpergore , data=gavote)
+summary(lmod2)
+
+#####################################################################################
+note that confint(lmod2), we can get the 95% C.I. of the coeff. 
+what conclusion do we get?
+Analysis of Variance Table
+
+Model 1: undercount ~ pergore + perAA
+Model 2: undercount ~ cpergore + cperAA + rural + equip + rural * cpergore
+  Res.Df      RSS  Df Sum of Sq      F   Pr(>F)   
+1    156 0.093249                                 
+2    150 0.081775   6  0.011474 3.5077 0.002823 **
+###################################################################################### 
+anova(lmod1, lmod2)
+
+# Test all models with one predictor less
+drop1(lmod2, test="F")
+
+# Confidence interals
+confint(lmod2)
+
+
+#######################################################################################
+Diagnostics
+note here plot(lmod2), we can get 4 plots about the model
+####################################################################################
+par(mfrow=c(2,2))
+plot(lmod2)
+
+#######################################################################################
+do not get these?
+####################################################################################
+# High leverage points
+gavote[influence(lmod2)$hat>0.3,]
+
+X <- model.matrix(lmod2)
+lev <- diag(X%*%solve(t(X)%*%X)%*%t(X))
+influence(lmod2)$hat
+#######################################################################################
+this is good
+####################################################################################
+# Influential points
+par(mfrow=c(1,1))
+cd <- cooks.distance(lmod2)
+plot(cd, type="h", xlab="Obs. number", ylab="Cook's Distance")
+cd.pick <- cd[cd>0.1]
+obs.num <- 1:n
+obs.pick <-  obs.num[cd>0.1]
+text(obs.pick, cd.pick, names(cd.pick))
+
+
+gavote[cd>0.1,]
+#######################################################################################
+termplot, 
+####################################################################################
+# Partial Residual plot
+par(mfrow=c(2,2))
+termplot(lmod2, partial=T, terms=1)
+termplot(lmod2, partial=T, terms=2)
+termplot(lmod2, partial=T, terms=3)
+termplot(lmod2, partial=T, terms=4)
+#######################################################################################
+# Model selection
+# This will give up to all the two way interactions for the categorical variables
+# up to two way interactions between the continuous and the categorical variables
+####################################################################################
+
+big.lm <- lm(undercount ~ (equip + econ + rural + atlanta)^2 + (equip + econ + rural + atlanta)*(perAA+pergore), data=gavote)
+summary(big.lm)
+
+# Sequentially elimate terms based on AIC
+small.lm <- step(big.lm)
+
+#######################################################################################
+# Maybe testing can hlp reduce the model further
+# we find that we should reject the smaller model in favor of the larger model 
+# however we can drop the interaction rural:perAA but we must keep the main effect for rural
+note that small p-value is to reject the 1st model
+####################################################################################
+small.lm2 <- lm(undercount ~ equip + econ + perAA + equip:econ + equip:perAA, data=gavote)
+anova(small.lm, small.lm2, test="F") 
+
+anova(small.lm2)
+summary(small.lm2)
+
+
+## Interpretations
+# With interactions, making predictions is usually the best way to interpret the effects
+pred.x <- data.frame(econ=rep(levels(gavote$econ), 5), rural=rep("urban", 5), equip=rep(levels(gavote$equip), rep(3,5)), perAA=rep(quantile(gavote$perAA, c(0.5)), 15))
+pred.x
+
+
+pp <- predict(small.lm, new=pred.x)
+xtabs(round(pp,3) ~ econ + equip, pred.x)
+
+#
+pred.x <- data.frame(econ=rep("middle", 15),  rural=rep("urban", 5), equip=rep(levels(gavote$equip), rep(3,5)), perAA=rep(quantile(gavote$perAA, c(0.25, 0.5, 0.75)),5))
+pred.x
+pp <- predict(small.lm, new=pred.x)
+xtabs(round(pp,3) ~ econ + equip, pred.x)
+
+propAA <- gl(3, 1, 15, labels=c("low", "medium", "high"))
+xtabs(round(pp,3) ~ propAA + equip, pred.x)
+
